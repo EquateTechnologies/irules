@@ -28,7 +28,8 @@ While you can get away with simply dumping in the output from [clock seconds]; i
 
 Use the following to generate seconds since epoch with some millisecond level accuracy.
 
-```set clicks [clock clicks -milliseconds]
+```
+set clicks [clock clicks -milliseconds]
 set http_request_time [string range ${clicks} 0 end-3].[string range ${clicks} end-2 end]
 unset clicks
 ```
