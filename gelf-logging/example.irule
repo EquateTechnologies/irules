@@ -2,7 +2,9 @@ when RULE_INIT {
   set static::gelf_publisher {/Common/LOG-PUBLISH-GELF-TCP-1}
 }
 when SOME_EVENT {
-  set event_time [clock seconds]
+  set clicks [clock clicks -milliseconds]
+  set event_time [string range ${clicks} 0 end-3].[string range ${clicks} end-2 end]
+  unset clicks
   set tmos_event {SOME_EVENT}
   set hsl [HSL::open -publisher $static::gelf_publisher]
   set bigip_unit [info hostname]
