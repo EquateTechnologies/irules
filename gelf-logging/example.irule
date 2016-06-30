@@ -1,0 +1,17 @@
+when RULE_INIT {
+  set static::gelf_publisher {/Common/LOG-PUBLISH-GELF-TCP-1}
+}
+when SOME_EVENT {
+  set event_time [clock seconds]
+  set tmos_event {SOME_EVENT}
+  set hsl [HSL::open -publisher $static::gelf_publisher]
+  set bigip_unit [info hostname]
+   
+  set log_message "{\"version\": \"1.1\",\"host\":\"${bigip_unit}\",\"short_message\":\"SHORT MESSAGE\",\"full_message\":\"FULL MESSAGE\",\"timestamp\":${event_time},\"level\":6,\"_tmos_event\":\"${tmos_event}\"}"
+ 
+  # send the message, break this up in to multiple sends if it makes sense to do so
+  HSL::send ${hsl} ${log_message}
+ 
+  # this will send a *REAL* NULL byte and signal the end of the GELF message
+  HSL::send ${hsl} [binary format c* { 0 }]
+}
