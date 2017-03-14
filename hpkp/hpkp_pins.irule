@@ -1,0 +1,43 @@
+when RULE_INIT {
+  set static::hpkp_pins_class {hpkp_pins}
+  set static::hpkp_pins_max_age 2592000
+  set static::hpkp_report_only 0
+  set static::hpkp_include_subdomains 0
+  set static::hpkp_report_uri {https://webhook.your.domain/hpkp}
+}
+when HTTP_REQUEST {
+  set hpkp_pins_host [HTTP::host]
+}
+when HTTP_RESPONSE {
+  if { [class exists ${static::hpkp_pins_class}] and [class match ${hpkp_pins_host} equals ${static::hpkp_pins_class}] == {1} } {
+
+    # get list of HPKP values from string class
+    set hpkp_pins [class match -value ${hpkp_pins_host} equals ${static::hpkp_pins_class}]
+
+    # if we found values attempt insert header
+    if { ${hpkp_pins} != {} } {
+      # Set as report-only or enforcing header name?
+      if { ${static::hpkp_report_only} == {1} } {
+        set hpkp_header_name {Public-Key-Pins-Report-Only}
+      } else {
+        set hpkp_header_name {Public-Key-Pins}
+      }
+      
+      # Always add max-age
+      set hpkp_header_tail "max-age=${static::hpkp_pins_max_age}"
+      
+      # Add subdomains option?
+      if { ${static::hpkp_include_subdomains} == {1} } {
+        set hpkp_header_tail "${hpkp_header_tail}; includeSubdomains"
+      }
+      
+      # Add report URL ?
+      if { ${static::hpkp_report_uri} != {} } {
+        set hpkp_header_tail "${hpkp_header_tail}; report-uri=\"${static::hpkp_report_uri}\""
+      }
+      
+      # Insert header
+      HTTP::header insert ${hpkp_header_name} "${hpkp_pins}; ${hpkp_header_tail}"
+    }
+  }
+}

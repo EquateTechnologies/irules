@@ -1,19 +1,28 @@
 when RULE_INIT {
-  set static::gelf_publisher {/Common/LOG-PUBLISH-GELF-TCP-1}
+  log local0.info "AUDIT"
+}
+when CLIENT_ACCEPTED {
+  set gelf_publisher {/Common/LOG-PUBLISH-GELF-TCP-1}
+  set gelf_log {1}
+  set gelf_log_level {6}
+  set gelf_bigip_unit [info hostname]
+  if {[catch {set gelf_hsl [HSL::open -publisher ${/Common/LOG-PUBLISH-GELF-TCP-1}]}]} {
+    log local0.err "Can't open HSL log publisher /Common/LOG-PUBLISH-GELF-TCP-1"
+    set gelf_log {0}
+  }
 }
 when SOME_EVENT {
-  set clicks [clock clicks -milliseconds]
-  set event_time [string range ${clicks} 0 end-3].[string range ${clicks} end-2 end]
-  unset clicks
-  set tmos_event {SOME_EVENT}
-  set hsl [HSL::open -publisher $static::gelf_publisher]
-  set bigip_unit [info hostname]
-   
-  set log_message "{\"version\": \"1.1\",\"host\":\"${bigip_unit}\",\"short_message\":\"SHORT MESSAGE\",\"full_message\":\"FULL MESSAGE\",\"timestamp\":${event_time},\"level\":6,\"_tmos_event\":\"${tmos_event}\"}"
+  if {${gelf_log} == {1}} {
+    set tmos_event {SOME_EVENT}
+    set event_clicks [clock clicks -milliseconds]
+    set event_time [string range ${event_clicks} 0 end-3].[string range ${event_clicks} end-2 end]
+    unset event_clicks
  
-  # send the message, break this up in to multiple sends if it makes sense to do so
-  HSL::send ${hsl} ${log_message}
+    # send the GELF log, break this up in to multiple sends if it makes sense to do so
+    HSL::send ${gelf_hsl} "{\"version\": \"1.1\",\"host\":\"${gelf_bigip_unit}\",\"short_message\":\"SHORT MESSAGE\",\"full_message\":\"FULL MESSAGE\",\"timestamp\":${event_time},\"level\":${gelf_log_level},\"_tmos_event\":\"${tmos_event}\"}"
  
-  # this will send a *REAL* NULL byte and signal the end of the GELF message
-  HSL::send ${hsl} [binary format c* { 0 }]
+    # this will send a *REAL* NULL byte and signal the end of the GELF message
+    # DO NOT TRY TO INCLUDE OR APPEND TO A STRING, SEND ON ITS OWN.
+    HSL::send ${hsl} [binary format c* { 0 }]
+  }
 }
